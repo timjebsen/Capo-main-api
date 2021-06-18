@@ -3,12 +3,15 @@ import time
 import traceback
 import json
 from datetime import datetime
+from datetime import date as dtdate
 from datetime import timedelta
+from datetime import time as dttime
 # from .sql.config import config as config 
 import requests
 from .exceptions import *
 from uuid import UUID
 import inspect
+import ast
 
 # Testing. Ignore this
 REQUEST_NUM = 0
@@ -457,10 +460,33 @@ class db_funcs():
                     "event_info must be dict: given {}".format(type(event_info)))
                 raise Exception
 
+            # Check for a duplicate - same artist, venue, time, date
             elif(db_funcs.check_gig_exists_with_id(None, cursor, event_info['artist_id'], event_info['venue_id'], event_info['time'])):
                 raise Duplicate( notices.print_note(
                     None, 0, "insert_event",
                     "Event already exists: {}".format(str(event_info))))
+                
+            #  TODO Check for conflicts
+            # Check if the new event conflicts with a current event with the same time and venue (but differeing artists)
+            # Handling this gets a bit dicey, either we can just ignore the new event altogether, or 
+            # we can perform some tests to see if the new event 
+            # is actually the "same" as the current (but with different event title).
+            # If the event is considered different, an ideal situation would
+            # save and flag the event for manual review, else ignore.
+            # Otherwise if the event is actually the same, we check to see
+            # if new information is present (description, real artist, etc...).
+            # Then update the event with the new information.
+            
+            # Data points to consider:
+            # - Title/Artist. If the new artist is a real artist (not a temp), update accordingly.
+            # - If no description is present in the current event, but the new event has one, update acordingly.
+            
+            # elif (check_for_conflict(event_time, venue)):
+            #     compare_event_fields(event_info)
+            #     compare_
+            
+            
+            
             else:
                 try:
                     sql = "INSERT INTO `gigs`(`artist_id`, `venue_id`, `user_id`, `source_id`, `ticket`, `date`, `time`, `price`, `facebook_event_link`, `uuid`, `duration`, `description`, `event_link`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, UUID(), %s, %s, %s)"
@@ -513,6 +539,7 @@ class notices:
         # * 0 == Notice
         # * 1 == Warning
         # * 2 == Error
+        
         # for each in inspect.stack():
         #     if each[0].f_globals['__name__'] == '__main__':
         #         break
@@ -689,3 +716,228 @@ class images:
 
         except:
             traceback.print_exc()
+
+
+class venue_h_funcs:
+    def to_list(self, obj):
+        try:
+            obj = ast.literal_eval(obj)
+        except:
+            obj = None
+        return obj
+
+    def open_status(self, hours_obj, venue_name=None):
+        try:
+            if(hours_obj != None):
+                open_status = venue_h_funcs.is_venue_open(None, hours_obj, venue_name=venue_name)
+            else:
+                open_status = None
+        except Exception as e:
+            notices.print_note(None, 2, "build_venue_info_obj", "Error preparing hours: {}".format(str(e)))
+            open_status = None
+        return open_status
+
+    # Returns true if current time is within opening hours
+    # ! Does not adjust for timezones. All times are assumed to be AEST
+    # TODO fix above
+    def is_venue_open(self, hours, venue_name=None):
+        # venue_name used for debugging
+        # 2 formats are accepted. hours_weekday, and hours_raw. Both are lists
+        is_open = None
+        try:
+            if (type(hours) == list):
+                # Raw format
+                if (type(hours[0]) == dict):
+                    # TODO open_now func for "raw_format"
+                    pass
+                # Is in pretty format
+                if(type(hours[0]) == str):
+                    # get day of week
+                    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                    current_day_of_week = days[datetime.today().weekday()]
+                    # get the venue hours of the current day
+                    for venue_day_hours in hours:
+                        if current_day_of_week in venue_day_hours:
+                            # Check for "closed" today
+                            if 'Closed' in venue_day_hours:
+                                return False
+                            else:
+                                # Get a datetime object for open and close
+                                open_close_hours = re.findall(current_day_of_week+': (.*) – (.*)', venue_day_hours)
+                                try:
+                                    open_time = open_close_hours[0][0]
+                                    close_time = open_close_hours[0][1]
+                                except:
+                                    
+                                    notices.print_note(None, 1, "is_venue_open", "Error regexing opening hours: '{}' \nVenue Name: {}".format(str(open_close_hours), venue_name))
+                                    return is_open
+
+                                # Create a datetime object
+                                # Open time will always be today
+                                try:
+                                    open_time_obj = time.strptime(open_time, "%I:%M %p")
+                                    close_time_obj = time.strptime(close_time, "%I:%M %p")
+                                except ValueError:
+                                    try:
+                                        # TODO Handle incorrectly formatted time i.e. missing 'am', 'pm'
+                                        close_time_obj = time.strptime(close_time, "%I:%M %p")
+                                        open_time_obj = time.strptime(open_time + ' ' + time.strftime("%p", close_time_obj), "%I:%M %p")
+
+                                    except ValueError:
+                                        print(time.strftime("%p", close_time_obj))
+                                        notices.print_note(None, 1, "is_venue_open", "Incorrectly formatted hours: '{}'\nVenue Name: {}".format(str(open_time), venue_name))
+                                        return is_open
+                            
+                                
+                                open_datetime = datetime.combine(dtdate.today(), dttime(open_time_obj.tm_hour, open_time_obj.tm_min))
+
+                                # Close time could be either today or tomorrow
+                                # This creates a problem in how to identify if
+                                # close time is today or tomorrow
+                                # 
+                                # It will be assumed that if the close time is 'am'
+                                # it is referring to the following day. This method
+                                # is not perfect, and will mislabel some times incorrectly.
+                                
+                                # If hour is less than 12, it is 'am'
+                                if (close_time_obj.tm_hour < 12):
+                                    # create a dt obj with tomorrows date
+                                    close_datetime = datetime.combine(dtdate.today()+timedelta(days=1), dttime(close_time_obj.tm_hour, close_time_obj.tm_min))
+                                else:
+                                    close_datetime = datetime.combine(dtdate.today(), dttime(close_time_obj.tm_hour, close_time_obj.tm_min))
+                                    
+                                current_datetime = datetime.now()
+
+                                # Check if current time is within open range
+                                if (open_datetime <= current_datetime <= close_datetime):
+
+                                    return True
+                                else:
+                                    return False
+
+                
+
+        except Exception as e:
+            traceback.print_exc()
+            notices.print_note(None, 2, "is_venue_open", "Unknown error: {}".format(e))
+            return is_open
+
+    # Prettify type string (remove underscores, capitalise)
+    def prepare_types(self, types_list):
+        formatted_types = []
+        for each_type in types_list:
+            # if (each_type != "locality"):
+            #     each_type = each_type[:1].upper() + each_type[1:]
+            #     if '_' in each_type:
+            #         each_type.replace("_", " ")
+                
+            #     formatted_types.append(each_type)
+            each_type = each_type[:1].upper() + each_type[1:]
+            each_type = each_type.replace("_", " ")
+                
+            formatted_types.append(each_type)
+        return formatted_types
+    
+    # Pretty open status
+    def format_open_status(status):
+        if status == None:
+            status = None
+        elif status == False:
+            status = 'Closed'
+        elif status == True:
+            status = "Open Now!"
+        return status
+    
+    def format_costs_message(is_usually_ticketed):
+        message = None
+        if (is_usually_ticketed != None):
+            if is_usually_ticketed == 1:
+                message = "This event and this venue usually has entry costs."
+
+            elif is_usually_ticketed == 0:
+                message = "This venue usually has free entry."
+
+        return message
+        
+class event_h_funcs:
+    # TODO standardise ticket info/text vars properly.
+    # Currently the type of price switches from str to int depending on what is called
+    def format_price_and_ticket (ticket, price, usual):
+        try:
+            # Usual is a bool that indicates a venue usually has paid entry/ticket costs
+            # Ticket is a bool, with 3 values.
+            # 0 = False (definite. if false then the event has been verified to be free)
+            # 1 = True
+            # None = No information is known about the event
+            if (usual != None):
+                
+                if ticket == None and usual == 1:
+                    ticket_text = "Sorry, we dont have any pricing information for this event."
+                    price = None
+                    return ticket_text, price
+                elif ticket == None and usual == 0:
+                    ticket_text = "Sorry, we dont have any pricing information for this event."
+                    price = None
+                    return ticket_text, price
+                elif ticket == 0 and usual == 1:
+                    ticket_text = "Free Gig!"
+                    price = None
+                    return ticket_text, price
+            
+            if ticket == None:
+                ticket_text = "Sorry, we don't have any pricing information for this event"
+                price = None
+            elif ticket == 0:
+                ticket_text = "Free Gig!"
+                price = None
+            elif (ticket > 0 and price > 0):
+                ticket_text = 'Ticket: '
+                price = '$' + str(price)
+            else:
+                ticket_text = 'Sorry, we dont have anys pricing information for this event'
+                price = None
+            return ticket_text, price
+        except:
+            ticket_text = 'Sorry, we dont have anys pricing information for this event'
+            price = None
+            
+        return ticket_text, price
+    
+    def format_fields(event_info):
+        try:
+            ticket_text, price = event_h_funcs.format_price_and_ticket(event_info['event_info']['ticket'], event_info['event_info']['price'], event_info['venue_info']['costs']['is_usually_ticketed'])
+            
+            # Construct ticket obj
+            event_info['event_info']['ticket'] = {
+                "is_ticketed": event_info['event_info']['ticket'],
+                "price": price,
+                "text": ticket_text
+            }
+            
+            # Remove kv pairs
+            event_info['event_info'].pop("price")
+            
+            return event_info
+        except KeyError:
+            try:
+                if (event_info['price'] is not None and event_info['price'] > 0):
+                    price = '$'+str(event_info['price'])
+                elif (event_info['ticket'] == False):
+                    price = "Free Gig!"
+                else:
+                    price = None
+                
+                # Construct ticket obj
+                event_info['ticket'] = {
+                    "is_ticketed": event_info['ticket'],
+                    "price": price,
+                    # "text": ticket_text
+                }
+                
+                # Remove kv pairs
+                event_info.pop("price")
+                
+                return event_info
+            except Exception as e:
+                traceback.print_exc()
+                notices.print_note(None, 2, "format_fields", "Unknown error: {}".format(e))

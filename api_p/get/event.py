@@ -2,15 +2,14 @@ import time
 from datetime import datetime as dt
 import datetime
 from ..sql.sql_connector import connector_for_class_method as connector_for_class_method
-from ..sql.queries import queries as q
-from ..helper_funcs import notices as n
-from ..helper_funcs import db_funcs as db
+from ..helper_funcs import db_funcs as db, event_h_funcs
+from ..helper_funcs import venue_h_funcs as venue_h_funcs
 from itertools import groupby
 from ..helper_funcs import response_builder as response_builder
 from .venue import venue_info as venue_info
 from .artist import artist_info as artist_info
 from ..exceptions import *
-import traceback
+
 
 class gig_info:
     # Return information about an event (artist, venue, and event)
@@ -41,6 +40,11 @@ class gig_info:
                     "artist_info": artist_info.artist_info_basic(None, cursor, artist_id),
                     "Status": "OK"
                 }
+                
+                # Re-structure and format fields
+                event_info = event_h_funcs.format_fields(event_info)
+                
+                
                 res = event_info
             else:
                 raise UUIDNotFound()
@@ -76,10 +80,11 @@ class gig_info:
 
 
 class events_list:
-    base_sql = "SELECT artists.name, venues.name, gigs.uuid, `ticket`, `date`, `time`, `price`, `facebook_event_link`, venues.suburb, artists.uuid, venues.uuid, venues.usually_ticketed \
+    base_sql = "SELECT artists.name, venues.name, gigs.uuid, `ticket`, `date`, `time`, `price`, `facebook_event_link`, venues.suburb, artists.uuid, venues.uuid, venues.usually_ticketed, venues.hours_weekday \
             FROM ((`gigs` INNER JOIN artists ON gigs.artist_id = artists.artist_id) \
             INNER JOIN venues ON gigs.venue_id = venues.venue_id)"
 
+    # TODO see below
     @connector_for_class_method
     def day(self, cursor, request):
 
@@ -116,7 +121,11 @@ class events_list:
             
             for result in myresult:
                 event = dict(zip(row_headers, result))
+                
+                # Re-structure and format fields
                 event['genre'] = db.get_genre(None, cursor, result[9])
+                event['open_status'] = venue_h_funcs.open_status(None, venue_h_funcs.to_list(None, result[12]), result[1])
+                event = event_h_funcs.format_fields(event)
                 gigs.append(event)
 
             gigs.sort(key=lambda gigsg: gigsg['time'])
@@ -143,6 +152,9 @@ class events_list:
         # print("connection after "+str(db_conn.open))
         return response_builder.build_res(None, gigs_group, "events", request, stime, meta)
 
+
+    # TODO refactor to accept 'day' params
+    # TODO include venue is open in event
     @connector_for_class_method
     def month(self, cursor, request):
 
@@ -169,35 +181,32 @@ class events_list:
         row_headers[10] = "venue_id"
 
         myresult = cursor.fetchall()
-        gigs = []
-        gigs_grouped = {}
+        events = []
+        events_grouped = {}
         if (len(myresult) > 0):
             for result in myresult:
-                # print(gig_info)
-                gig_info = dict(zip(row_headers, result))
-                # print(gig_info)
-                gig_info['genre'] = db.get_genre(None, cursor, result[9])
-                
-                gigs.append(gig_info)
-                
-            gigs.sort(key=lambda gigsg: gigsg['time'])
-            # print(gigs)
 
-            gigs_grouped_iter = groupby(gigs, lambda gigsg: gigsg['date'])
-            # for each in gigs_grouped_iter:
-            #     print()
-            #     print(each)
-            #     for r in each[1]:
-            #         print(r)
+                event_info = dict(zip(row_headers, result))
+                
+                # Re-structure and format fields
+                event_info['genre'] = db.get_genre(None, cursor, result[9])
+                event_info.pop('hours_weekday', None)
+                event_info = event_h_funcs.format_fields(event_info)
+                event_info['open_status'] = venue_h_funcs.open_status(None, venue_h_funcs.to_list(None, result[12]), result[1])
+                events.append(event_info)
+                
+            events.sort(key=lambda eventsgrouped: eventsgrouped['time'])
 
-            for w, g in gigs_grouped_iter:
+            events_grouped_iter = groupby(events, lambda eventsgrouped: eventsgrouped['date'])
+
+            for w, g in events_grouped_iter:
                 try:
-                    gigs_grouped[str(w)]
+                    events_grouped[str(w)]
                 except KeyError:
-                    gigs_grouped[str(w)] = []
+                    events_grouped[str(w)] = []
 
                 for e in g:
-                    gigs_grouped[str(w)].append(e)
+                    events_grouped[str(w)].append(e)
             
         
         etime = time.time()
@@ -205,4 +214,4 @@ class events_list:
             # time.sleep(5)
         
         # print("connection after "+str(db_conn.open))
-        return response_builder.build_res(None, gigs_grouped, "events", request, stime, {})
+        return response_builder.build_res(None, events_grouped, "events", request, stime, {})
