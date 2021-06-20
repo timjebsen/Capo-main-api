@@ -6,7 +6,7 @@ from datetime import datetime
 from datetime import date as dtdate
 from datetime import timedelta
 from datetime import time as dttime
-# from .sql.config import config as config 
+# from .sql.config import config as config
 import requests
 from .exceptions import *
 from uuid import UUID
@@ -17,9 +17,11 @@ import ast
 REQUEST_NUM = 0
 
 import socket
+
+
 def logger(text):
     HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
-    PORT = 12123        # Port to listen on (non-privileged ports are > 1023)
+    PORT = 12123  # Port to listen on (non-privileged ports are > 1023)
     # run = True
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,8 +36,8 @@ def logger(text):
             data = text.encode('ascii')
             # while i < 1000:
             conn.sendall(data)
-                # print('Sending')
-                # i +=1
+            # print('Sending')
+            # i +=1
             conn.close()
             s.shutdown(socket.SHUT_RDWR)
             s.close()
@@ -60,17 +62,17 @@ def print_req_info(func):
         REQUEST_NUM += 1
         stime = time.time()
         print("======== Begin Request ========")
-        print("Server time: {}".format(
-            datetime.now().strftime("%H:%M:%S.%f")))
+        print("Server time: {}".format(datetime.now().strftime("%H:%M:%S.%f")))
         print("Request: {}".format(request.path))
         print("Global Req. number: ", REQUEST_NUM)
         print("Client: " + request.host)
         print("Origin IP: " + request.remote)
         func(request, *args, **kwargs)
         etime = time.time()
-        print("Time to complete: " + str((etime - stime)*1000) + " ms")
+        print("Time to complete: " + str((etime - stime) * 1000) + " ms")
         print("========= End Request =========")
-        return 
+        return
+
     return wrapper
 
 
@@ -83,8 +85,7 @@ class h_funcs:
         global changed
         REQUEST_NUM += 1
         print("======== Begin Request ========")
-        print("Server time: {}".format(
-            datetime.now().strftime("%H:%M:%S.%f")))
+        print("Server time: {}".format(datetime.now().strftime("%H:%M:%S.%f")))
         print("Request: {}".format(request.path))
         print("Global Req. number: ", REQUEST_NUM)
         print("Client: " + request.host)
@@ -96,7 +97,9 @@ Request: {}
 Global Req. number: {}
 Client: {}
 Origin IP: {}
-========= End Request =========""".format(datetime.now().strftime("%H:%M:%S.%f"), request.path, REQUEST_NUM, request.host, request.remote)
+========= End Request =========""".format(
+            datetime.now().strftime("%H:%M:%S.%f"), request.path, REQUEST_NUM,
+            request.host, request.remote)
         # logger(text)
         # print('Log buffer is : ' + LOG_BUFFER)
 
@@ -127,13 +130,12 @@ Origin IP: {}
         >>> is_valid_uuid('c9bf9e58')
         False
         """
-        
+
         try:
             uuid_obj = UUID(uuid_to_test, version=version)
         except ValueError:
             return False
         return str(uuid_obj) == uuid_to_test
-
 
 
 class db_funcs():
@@ -145,7 +147,6 @@ class db_funcs():
             genre_id,
         )
         cursor.execute(sql, val)
-        
 
     def check_exist(self, cursor, tbl, col, value_to_check):
         sql = "SELECT 1 FROM `{}` WHERE `{}` = %s".format(tbl, col)
@@ -166,14 +167,12 @@ class db_funcs():
         # Plan has changed to be mostly manual input.
         if not db_funcs.check_exist(None, cursor, table, column, src_name):
             sql = "INSERT INTO `sources` (name) VALUES (%s);"
-            val = (
-                src_name,
-            )
+            val = (src_name, )
             cursor.execute(sql, val)
             source_id = cursor.lastrowid
         else:
             sql = "SELECT * FROM `sources` WHERE `name` = %s"
-            val = (src_name,)
+            val = (src_name, )
             cursor.execute(sql, val)
             myresult = cursor.fetchall()
             source_id = myresult[0][0]
@@ -262,9 +261,10 @@ class db_funcs():
             myresult = cursor.fetchall()
             return myresult[0][0]
         else:
-            raise UUIDNotFound(notices.print_note(None, 2, "get_id_from_uuid",
-                               "No artist or venue with uuid: {}".format(uuid)))
-            
+            raise UUIDNotFound(
+                notices.print_note(
+                    None, 2, "get_id_from_uuid",
+                    "No artist or venue with uuid: {}".format(uuid)))
 
     # Get a uuid from an id. Only for venues and artists
     def get_uuid_from_id(self, cursor, _id, artist_or_venue):
@@ -277,15 +277,17 @@ class db_funcs():
                 return myresult[0][0]
 
             elif (artist_or_venue == 'venue'):
-                sql = "SELECT `uuid` FROM `venues` WHERE `venue_id` = '{}'".format(_id)
+                sql = "SELECT `uuid` FROM `venues` WHERE `venue_id` = '{}'".format(
+                    _id)
                 cursor.execute(sql)
                 myresult = cursor.fetchall()
                 return myresult[0][0]
             else:
-                raise IDNotFound(notices.print_note(None, 2, "get_uuid_from_id",
-                               "No artist or venue with id: {}".format(_id)))
-        return notices.print_note(None, 2, "get_uuid_from_id",
-                               "Id is None")
+                raise IDNotFound(
+                    notices.print_note(
+                        None, 2, "get_uuid_from_id",
+                        "No artist or venue with id: {}".format(_id)))
+        return notices.print_note(None, 2, "get_uuid_from_id", "Id is None")
 
     # Returns an internal id based off a name only match
     # Used in the post_event handler func. This must be deprecated in near future
@@ -294,67 +296,47 @@ class db_funcs():
     def get_id_from_name(self, cursor, _type, name):
         if (_type == 'venue'):
             sql = "SELECT `venue_id` FROM `venues` WHERE `name` = %s"
-            val = (name,)
+            val = (name, )
             cursor.execute(sql, val)
             myresult = cursor.fetchall()
             if (len(myresult) > 1):
                 notices.print_note(
                     None, 2, "get_id_from_name",
                     "More than 1 record with name: {}".format(name))
-                raise MoreThanOneRecordReturned(notices.print_note(
-                    None, 2, "get_id_from_name",
-                    "More than 1 record with name: {}".format(name)))
+                raise MoreThanOneRecordReturned(
+                    notices.print_note(
+                        None, 2, "get_id_from_name",
+                        "More than 1 record with name: {}".format(name)))
             elif (len(myresult) == 1):
                 return myresult[0][0]
             else:
-                raise IDNotFound(notices.print_note(None, 2, "get_id_from_name",
-                                   "No venue with name: {}".format(name)))
+                raise IDNotFound(
+                    notices.print_note(None, 2, "get_id_from_name",
+                                       "No venue with name: {}".format(name)))
 
         elif (_type == 'artist'):
             sql = "SELECT `artist_id` FROM `artists` WHERE `name` = %s"
-            val = (name,)
+            val = (name, )
             cursor.execute(sql, val)
             myresult = cursor.fetchall()
             if (len(myresult) > 1):
-                raise MoreThanOneRecordReturned(notices.print_note(
-                    None, 2, "get_id_from_name",
-                    "More than 1 record with name: {}".format(name)))
+                raise MoreThanOneRecordReturned(
+                    notices.print_note(
+                        None, 2, "get_id_from_name",
+                        "More than 1 record with name: {}".format(name)))
             elif (len(myresult) == 1):
                 return myresult[0][0]
             else:
-                
-                raise RecordNotFound(notices.print_note(None, 2, "get_id_from_name",
-                                   "No artist with name: {}".format(name)))
-        else:
-            raise CategoryError(notices.print_note(
-                None, 2, "get_id_from_name",
-                "Type must be 'artist' or 'venue', given: {}".format(_type)))
 
-    def check_gig_exists_with_uuid(self, cursor, artist_id, venue_id, time):
-        sql = "SELECT 1 FROM `gigs` WHERE artists.uuid = %s AND venues.uuid = %s AND `time` = %s"
-        val = (
-            artist_id,
-            venue_id,
-            time,
-        )
-        cursor.execute(sql, val)
-        myresult = cursor.fetchall()
-        return myresult
-    
-    def check_gig_exists_with_id(self, cursor, artist_id, venue_id, time):
-        sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s"
-        val = (
-            artist_id,
-            venue_id,
-            time,
-        )
-        cursor.execute(sql, val)
-        myresult = cursor.fetchall()
-        if(len(myresult) > 0):
-            return True
+                raise RecordNotFound(
+                    notices.print_note(None, 2, "get_id_from_name",
+                                       "No artist with name: {}".format(name)))
         else:
-            return False
-        
+            raise CategoryError(
+                notices.print_note(
+                    None, 2, "get_id_from_name",
+                    "Type must be 'artist' or 'venue', given: {}".format(
+                        _type)))
 
     def get_region(self, cursor, id):
         region = {}
@@ -414,7 +396,7 @@ class db_funcs():
         return genre
 
     def get_venue_types(self, cursor, id):
-        
+
         type_string = []
         if (isinstance(id, int)):
             sql = "SELECT * FROM `venue_type` WHERE `venue_id` = {} ORDER BY venue_type.type_id ASC ".format(
@@ -456,96 +438,99 @@ class db_funcs():
         try:
             if (type(event_info) != dict):
                 notices.print_note(
-                    None, 2, "insert_event",
-                    "event_info must be dict: given {}".format(type(event_info)))
+                    None, 2,
+                    "insert_event", "event_info must be dict: given {}".format(
+                        type(event_info)))
                 raise Exception
 
             # Check for a duplicate - same artist, venue, time, date
-            elif(db_funcs.check_gig_exists_with_id(None, cursor, event_info['artist_id'], event_info['venue_id'], event_info['time'])):
-                raise Duplicate( notices.print_note(
-                    None, 0, "insert_event",
-                    "Event already exists: {}".format(str(event_info))))
-                
+            elif (event_h_funcs.check_event_duplicate(None, cursor,
+                                                      event_info['artist_id'],
+                                                      event_info['venue_id'],
+                                                      event_info['time'],
+                                                      event_info['date'])):
+                raise Duplicate(
+                    notices.print_note(
+                        None, 0, "insert_event",
+                        "Event already exists: {}".format(str(event_info))))
+
             #  TODO Check for conflicts
             # Check if the new event conflicts with a current event with the same time and venue (but differeing artists)
-            # Handling this gets a bit dicey, either we can just ignore the new event altogether, or 
-            # we can perform some tests to see if the new event 
+            # Handling this gets a bit dicey, either we can just ignore the new event altogether, or
+            # we can perform some tests to see if the new event
             # is actually the "same" as the current (but with different event title).
             # If the event is considered different, an ideal situation would
             # save and flag the event for manual review, else ignore.
             # Otherwise if the event is actually the same, we check to see
             # if new information is present (description, real artist, etc...).
             # Then update the event with the new information.
-            
+
             # Data points to consider:
             # - Title/Artist. If the new artist is a real artist (not a temp), update accordingly.
             # - If no description is present in the current event, but the new event has one, update acordingly.
-            
-            # elif (check_for_conflict(event_time, venue)):
-            #     compare_event_fields(event_info)
-            #     compare_
-            
-            
-            
+
+            elif (event_h_funcs.check_event_conflict(None, cursor,
+                                                event_info['time'],
+                                                event_info['venue_id'],
+                                                event_info['date'])):
+                # event_h_funcs.compare_event_fields(None, cursor, event_info)
+                pass
+                
+
             else:
                 try:
                     sql = "INSERT INTO `gigs`(`artist_id`, `venue_id`, `user_id`, `source_id`, `ticket`, `date`, `time`, `price`, `facebook_event_link`, `uuid`, `duration`, `description`, `event_link`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, UUID(), %s, %s, %s)"
-                    vals = (
-                        event_info['artist_id'],
-                        event_info['venue_id'],
-                        event_info['user_id'],
-                        event_info['source_id'],
-                        event_info['ticket'],
-                        event_info['date'],
-                        event_info['time'],
-                        event_info['price'],
-                        event_info['facebook_event_link'],
-                        event_info['duration'],
-                        event_info['description'],
-                        event_info['event_link']
-                    )
+                    vals = (event_info['artist_id'], event_info['venue_id'],
+                            event_info['user_id'], event_info['source_id'],
+                            event_info['ticket'], event_info['date'],
+                            event_info['time'], event_info['price'],
+                            event_info['facebook_event_link'],
+                            event_info['duration'], event_info['description'],
+                            event_info['event_link'])
                     cursor.execute(sql, vals)
                     res = {
                         "status": "OK",
                         "message": "Succesfully created new event"
                     }
                     return res
-                    
+
                 except Exception as e:
                     print(e)
 
         except Duplicate:
             # Events are sometimes posted across multiple locations
             # that are scraped, and sometimes those events contain
-            # data we dont already have. We check to see if the new 
+            # data we dont already have. We check to see if the new
             # event holds any new information and update the old event.
-            # 
+            #
             # Pseudocode:
             # iterate through each data point
             # compare with old data
             # if old data is empty, insert new data
-            # If the new event data is not a stub (not matched with an artist) and if the old data is a stub. 
+            # If the new event data is not a stub (not matched with an artist) and if the old data is a stub.
             # Replace the old data 'artist_id' with the new 'artist_id'
             # Remove old stub?
             # TODO implement above
-            
+
             res = {
                 "status": "OK",
                 "message": "Event Already Exists",
             }
             return res
+
+
 class notices:
     def print_note(self, type, func, details):
         # * 0 == Notice
         # * 1 == Warning
         # * 2 == Error
-        
+
         # for each in inspect.stack():
         #     if each[0].f_globals['__name__'] == '__main__':
         #         break
         #     print(each[0].f_globals['__name__'])
         #     # print(inspect.getmembers(each[0].f_globals))
-            
+
         notice_type = ""
         if (type == 0):
             notice_type = "[NOTICE]"
@@ -564,20 +549,18 @@ class response_builder:
     def build_res(self, list_obj, type_of, request, stime, custom=None):
         res = {}
         num = 0
-        if type(list_obj) is dict :
+        if type(list_obj) is dict:
             for each in list_obj:
                 num += len(list_obj[each])
         elif type(list_obj) is list:
             num += len(list_obj)
-        
 
         meta_data = {
             "rqst": request.path,
             "time_rcvd": stime,
             "time_sent": time.time(),
-            "time_total": str((time.time() - stime)*1000) + ' ms',
+            "time_total": str((time.time() - stime) * 1000) + ' ms',
             "num_of_obj": num,
-            
         }
 
         # Update metada with custom fields
@@ -595,12 +578,14 @@ class response_builder:
         meta_data = {"num_of_obj": num, "group_mode": group_mode}
         return meta_data
 
+
 from .sql.config import config
+
 
 # TODO move to config file
 class global_vars:
     img_server = config.image_config['host']
-    img_handler = img_server+"/handler"
+    img_handler = img_server + "/handler"
     add_image_ep = img_handler + '/image'
     img_dir = '/assets/img/'
     venue_img_dir = img_server + img_dir + 'venues/'
@@ -612,7 +597,7 @@ class global_vars:
 
 
 class images:
-     # If it takes more than 2 seconds to connect to the image server
+    # If it takes more than 2 seconds to connect to the image server
     # there is probably an issue. Because this will run for every venue in the list,
     # it will take a very long a time to finish.
     # Therefore skip the get_image_links for the remaining venues.
@@ -641,10 +626,12 @@ class images:
                         if (each_match[2] == 0):
                             image_links[0] = url + '/' + each_match
                         else:
-                            image_links[len(image_links)] = url + '/' + each_match
+                            image_links[len(
+                                image_links)] = url + '/' + each_match
                     return image_links
             except:
-                notices.print_note(None, 1, "get_image_links", "Error retriving image links")
+                notices.print_note(None, 1, "get_image_links",
+                                   "Error retriving image links")
                 images.ignore_images = True
                 return None
             else:
@@ -661,18 +648,25 @@ class images:
             #     return None
             # except:
             #     return None
-    
+
     def save_places_venue_images(self, image_list, uuid):
         if (image_list == None or image_list == []):
-            raise DataError(notices.print_note(None, 2, "save_places_venue_images", "Image List is null"))
+            raise DataError(
+                notices.print_note(None, 2, "save_places_venue_images",
+                                   "Image List is null"))
         try:
             image_num = 0
             for image_obj in image_list:
                 if image_num == 5:
                     break
                 image_reference = image_obj['photo_reference']
-                image_req = requests.get(global_vars.PLACES_PHOTOS_URL, {'maxwidth':1200,'photoreference': image_reference, 'key': global_vars.PLACES_API_KEY})
-                
+                image_req = requests.get(
+                    global_vars.PLACES_PHOTOS_URL, {
+                        'maxwidth': 1200,
+                        'photoreference': image_reference,
+                        'key': global_vars.PLACES_API_KEY
+                    })
+
                 # Get image format and check for content-type of 'image'
                 content_type = image_req.headers['Content-Type']
                 # print(content_type)
@@ -682,31 +676,41 @@ class images:
                     if (check_image == 'image'):
                         image_format = content_type[0][1]
                     else:
-                        raise DataFormat(notices.print_note(None, 2, "save_places_venue_images", "Content type not an 'image' {}".format(check_image)))
+                        raise DataFormat(
+                            notices.print_note(
+                                None, 2, "save_places_venue_images",
+                                "Content type not an 'image' {}".format(
+                                    check_image)))
                 except DataFormat as e:
                     print(e)
-                    
-                images.upload_venue_image(None, image_num, uuid, image_req.content, image_format)
 
-                image_num +=1
+                images.upload_venue_image(None, image_num, uuid,
+                                          image_req.content, image_format)
+
+                image_num += 1
             return 'success'
         except:
-            return 'save_places_venue_images error. See: {}'.format(str(traceback.print_exc()))
-            
+            return 'save_places_venue_images error. See: {}'.format(
+                str(traceback.print_exc()))
+
     # Uploads an image to the image_handler server
     # Returns the response object
     def upload_venue_image(self, image_number, uuid, image_data, image_format):
         try:
-            metadata = {"type": "venue",
+            metadata = {
+                "type": "venue",
                 "id": uuid,
                 "format": image_format,
                 "img_num": image_number,
-                "overwrite": False, 
+                "overwrite": False,
                 "append": True
-                }
+            }
 
-
-            req = requests.post(global_vars.add_image_ep, files={'meta': json.dumps(metadata), 'img': image_data})
+            req = requests.post(global_vars.add_image_ep,
+                                files={
+                                    'meta': json.dumps(metadata),
+                                    'img': image_data
+                                })
             req = req.json()
             print(req['message'])
             if (req['status'] == 'OK'):
@@ -728,12 +732,14 @@ class venue_h_funcs:
 
     def open_status(self, hours_obj, venue_name=None):
         try:
-            if(hours_obj != None):
-                open_status = venue_h_funcs.is_venue_open(None, hours_obj, venue_name=venue_name)
+            if (hours_obj != None):
+                open_status = venue_h_funcs.is_venue_open(
+                    None, hours_obj, venue_name=venue_name)
             else:
                 open_status = None
         except Exception as e:
-            notices.print_note(None, 2, "build_venue_info_obj", "Error preparing hours: {}".format(str(e)))
+            notices.print_note(None, 2, "build_venue_info_obj",
+                               "Error preparing hours: {}".format(str(e)))
             open_status = None
         return open_status
 
@@ -751,9 +757,12 @@ class venue_h_funcs:
                     # TODO open_now func for "raw_format"
                     pass
                 # Is in pretty format
-                if(type(hours[0]) == str):
+                if (type(hours[0]) == str):
                     # get day of week
-                    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                    days = [
+                        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                        "Saturday", "Sunday"
+                    ]
                     current_day_of_week = days[datetime.today().weekday()]
                     # get the venue hours of the current day
                     for venue_day_hours in hours:
@@ -763,63 +772,89 @@ class venue_h_funcs:
                                 return False
                             else:
                                 # Get a datetime object for open and close
-                                open_close_hours = re.findall(current_day_of_week+': (.*) – (.*)', venue_day_hours)
+                                open_close_hours = re.findall(
+                                    current_day_of_week + ': (.*) – (.*)',
+                                    venue_day_hours)
                                 try:
                                     open_time = open_close_hours[0][0]
                                     close_time = open_close_hours[0][1]
                                 except:
-                                    
-                                    notices.print_note(None, 1, "is_venue_open", "Error regexing opening hours: '{}' \nVenue Name: {}".format(str(open_close_hours), venue_name))
+
+                                    notices.print_note(
+                                        None, 1, "is_venue_open",
+                                        "Error regexing opening hours: '{}' \nVenue Name: {}"
+                                        .format(str(open_close_hours),
+                                                venue_name))
                                     return is_open
 
                                 # Create a datetime object
                                 # Open time will always be today
                                 try:
-                                    open_time_obj = time.strptime(open_time, "%I:%M %p")
-                                    close_time_obj = time.strptime(close_time, "%I:%M %p")
+                                    open_time_obj = time.strptime(
+                                        open_time, "%I:%M %p")
+                                    close_time_obj = time.strptime(
+                                        close_time, "%I:%M %p")
                                 except ValueError:
                                     try:
                                         # TODO Handle incorrectly formatted time i.e. missing 'am', 'pm'
-                                        close_time_obj = time.strptime(close_time, "%I:%M %p")
-                                        open_time_obj = time.strptime(open_time + ' ' + time.strftime("%p", close_time_obj), "%I:%M %p")
+                                        close_time_obj = time.strptime(
+                                            close_time, "%I:%M %p")
+                                        open_time_obj = time.strptime(
+                                            open_time + ' ' + time.strftime(
+                                                "%p", close_time_obj),
+                                            "%I:%M %p")
 
                                     except ValueError:
-                                        print(time.strftime("%p", close_time_obj))
-                                        notices.print_note(None, 1, "is_venue_open", "Incorrectly formatted hours: '{}'\nVenue Name: {}".format(str(open_time), venue_name))
+                                        print(
+                                            time.strftime(
+                                                "%p", close_time_obj))
+                                        notices.print_note(
+                                            None, 1, "is_venue_open",
+                                            "Incorrectly formatted hours: '{}'\nVenue Name: {}"
+                                            .format(str(open_time),
+                                                    venue_name))
                                         return is_open
-                            
-                                
-                                open_datetime = datetime.combine(dtdate.today(), dttime(open_time_obj.tm_hour, open_time_obj.tm_min))
+
+                                open_datetime = datetime.combine(
+                                    dtdate.today(),
+                                    dttime(open_time_obj.tm_hour,
+                                           open_time_obj.tm_min))
 
                                 # Close time could be either today or tomorrow
                                 # This creates a problem in how to identify if
                                 # close time is today or tomorrow
-                                # 
+                                #
                                 # It will be assumed that if the close time is 'am'
                                 # it is referring to the following day. This method
                                 # is not perfect, and will mislabel some times incorrectly.
-                                
+
                                 # If hour is less than 12, it is 'am'
                                 if (close_time_obj.tm_hour < 12):
                                     # create a dt obj with tomorrows date
-                                    close_datetime = datetime.combine(dtdate.today()+timedelta(days=1), dttime(close_time_obj.tm_hour, close_time_obj.tm_min))
+                                    close_datetime = datetime.combine(
+                                        dtdate.today() + timedelta(days=1),
+                                        dttime(close_time_obj.tm_hour,
+                                               close_time_obj.tm_min))
                                 else:
-                                    close_datetime = datetime.combine(dtdate.today(), dttime(close_time_obj.tm_hour, close_time_obj.tm_min))
-                                    
+                                    close_datetime = datetime.combine(
+                                        dtdate.today(),
+                                        dttime(close_time_obj.tm_hour,
+                                               close_time_obj.tm_min))
+
                                 current_datetime = datetime.now()
 
                                 # Check if current time is within open range
-                                if (open_datetime <= current_datetime <= close_datetime):
+                                if (open_datetime <= current_datetime <=
+                                        close_datetime):
 
                                     return True
                                 else:
                                     return False
 
-                
-
         except Exception as e:
             traceback.print_exc()
-            notices.print_note(None, 2, "is_venue_open", "Unknown error: {}".format(e))
+            notices.print_note(None, 2, "is_venue_open",
+                               "Unknown error: {}".format(e))
             return is_open
 
     # Prettify type string (remove underscores, capitalise)
@@ -830,14 +865,14 @@ class venue_h_funcs:
             #     each_type = each_type[:1].upper() + each_type[1:]
             #     if '_' in each_type:
             #         each_type.replace("_", " ")
-                
+
             #     formatted_types.append(each_type)
             each_type = each_type[:1].upper() + each_type[1:]
             each_type = each_type.replace("_", " ")
-                
+
             formatted_types.append(each_type)
         return formatted_types
-    
+
     # Pretty open status
     def format_open_status(status):
         if status == None:
@@ -847,7 +882,7 @@ class venue_h_funcs:
         elif status == True:
             status = "Open Now!"
         return status
-    
+
     def format_costs_message(is_usually_ticketed):
         message = None
         if (is_usually_ticketed != None):
@@ -858,11 +893,12 @@ class venue_h_funcs:
                 message = "This venue usually has free entry."
 
         return message
-        
+
+
 class event_h_funcs:
     # TODO standardise ticket info/text vars properly.
     # Currently the type of price switches from str to int depending on what is called
-    def format_price_and_ticket (ticket, price, usual):
+    def format_price_and_ticket(ticket, price, usual):
         try:
             # Usual is a bool that indicates a venue usually has paid entry/ticket costs
             # Ticket is a bool, with 3 values.
@@ -870,7 +906,7 @@ class event_h_funcs:
             # 1 = True
             # None = No information is known about the event
             if (usual != None):
-                
+
                 if ticket == None and usual == 1:
                     ticket_text = "Sorry, we dont have any pricing information for this event."
                     price = None
@@ -883,7 +919,7 @@ class event_h_funcs:
                     ticket_text = "Free Gig!"
                     price = None
                     return ticket_text, price
-            
+
             if ticket == None:
                 ticket_text = "Sorry, we don't have any pricing information for this event"
                 price = None
@@ -900,44 +936,201 @@ class event_h_funcs:
         except:
             ticket_text = 'Sorry, we dont have anys pricing information for this event'
             price = None
-            
+
         return ticket_text, price
-    
+
     def format_fields(event_info):
         try:
-            ticket_text, price = event_h_funcs.format_price_and_ticket(event_info['event_info']['ticket'], event_info['event_info']['price'], event_info['venue_info']['costs']['is_usually_ticketed'])
-            
+            ticket_text, price = event_h_funcs.format_price_and_ticket(
+                event_info['event_info']['ticket'],
+                event_info['event_info']['price'],
+                event_info['venue_info']['costs']['is_usually_ticketed'])
+
             # Construct ticket obj
             event_info['event_info']['ticket'] = {
                 "is_ticketed": event_info['event_info']['ticket'],
                 "price": price,
                 "text": ticket_text
             }
-            
+
             # Remove kv pairs
             event_info['event_info'].pop("price")
-            
+
             return event_info
         except KeyError:
             try:
-                if (event_info['price'] is not None and event_info['price'] > 0):
-                    price = '$'+str(event_info['price'])
+                if (event_info['price'] is not None
+                        and event_info['price'] > 0):
+                    price = '$' + str(event_info['price'])
                 elif (event_info['ticket'] == False):
                     price = "Free Gig!"
                 else:
                     price = None
-                
+
                 # Construct ticket obj
                 event_info['ticket'] = {
                     "is_ticketed": event_info['ticket'],
                     "price": price,
                     # "text": ticket_text
                 }
-                
+
                 # Remove kv pairs
                 event_info.pop("price")
-                
+
                 return event_info
             except Exception as e:
                 traceback.print_exc()
-                notices.print_note(None, 2, "format_fields", "Unknown error: {}".format(e))
+                
+                notices.print_note(None, 2, "format_fields",
+                                   "Unknown error: {}".format(e))
+
+    def check_event_conflict(self, cursor, event_time, event_venue_id, event_date):
+        sql = "SELECT 1 FROM `gigs` WHERE `venue_id` = %s AND `time` = %s AND `date` = %s"
+        val = (
+            event_venue_id,
+            event_time,
+            event_date
+        )
+
+        cursor.execute(sql, val)
+        myresult = cursor.fetchall()
+        if (len(myresult) > 0):
+            return True
+        else:
+            return False
+
+    def compare_event_fields(self, cursor, new_event):
+        """
+            Compares the new event data with current data,
+            and updates accordingly.
+            
+            I.e the current event is a stub and the new event
+            has a matched artist. Update the current event 
+            artist id with the new.
+            Same for description
+        """
+        print("New event conflict: Event: {}".format(new_event))
+        # Get current event data
+        sql = "SELECT * FROM `gigs` WHERE `venue_id` = %s AND `time` = %s AND `date` = %s"
+        val = (
+            new_event['venue_id'],
+            new_event['time'],
+            new_event['date'],
+        )
+
+        cursor.execute(sql, val)
+        myresult = cursor.fetchall()
+        
+        if len(myresult) > 1:
+            print("What?")
+        elif len(myresult) == 0:
+            print('what?2')
+        elif len(myresult) == 1:
+            current_event = myresult[0]
+            
+            # Compare if current is a stub
+            # Get the artist info for current event artist id
+            current_event_artist_info = artist_h_funcs.get_artist_info_from_id(None, cursor, current_event[1])
+            is_current_event_stub = False
+            
+            new_artist_info = artist_h_funcs.get_artist_info_from_id(None, cursor, new_event['artist_id'])
+            is_new_event_stub = new_artist_info[16]
+            
+            if current_event_artist_info is not None:
+                if (current_event_artist_info[16] == 1):
+                    is_current_event_stub = True
+                
+                if is_current_event_stub and is_new_event_stub != True:
+                    print("New event is not a stub, old is")
+                    # The new event is an artist
+                    # Try and replace the current event with the the new artist
+                    
+                    # However, we check to see if the artist name exists in the 
+                    # current event title or the description (this is to double check that
+                    # the new event really is the same event as the current)
+                    # If the artist name is not present in either the title or desc
+                    # theres is a decent chance that the events are actually different
+                    # Therefore we ignore this new event and print to log
+                    
+                    # Normalise text
+                    new_event_title = new_artist_info[1].lower().replace(" ", "")
+                    current_event_title = current_event_artist_info[1].lower().replace(" ", "")
+                    # Event Description
+                    if (current_event[15]):
+                        current_event_description = current_event[15].lower().replace(" ", "")
+                    else:
+                        current_event_description = ""
+                        
+                    if (new_event_title in current_event_title or new_event_title in current_event_description):
+                        # Both events are confirmed the same
+                        # Update the current event artist with the new
+                        notices.print_note(None, 0, "compare_event_fields", "Updating stub event with artist: \nOld: {}, New: {}".format(current_event_artist_info[1] , new_artist_info[1]))
+                        event_h_funcs.update_event_title(None, cursor, current_event[1], new_event['artist_id'])
+                        
+                        # if the current event has no description and the new one does, update description
+                        if (current_event_description == "" and new_event['description']):
+                            notices.print_note(None, 0, "compare_event_fields", "Updating event description: \nEvent title: {}, Desc: {}".format(new_artist_info[1], new_event['description']))
+
+                            event_h_funcs.update_event_description(None, cursor, current_event[1], new_event['description'])
+                else:
+                    print('Both events are stubs')
+                    print('Ignoring?')
+        else:
+            print("what3")
+
+    
+    def update_event_title(self, cursor, current_event_id, new_artist_id):
+        sql = "UPDATE `gigs` SET `artist_id` = %s WHERE `gigs`.`gig_id` = %s"
+        val = (
+            new_artist_id,
+            current_event_id,
+        )
+        cursor.execute(sql, val)
+    
+    def update_event_description(self, cursor, current_event_id, new_description):
+        sql = "UPDATE `gigs` SET `artist_id` = %s WHERE `gigs`.`description` = %s"
+        val = (
+            new_description,
+            current_event_id,
+        )
+        cursor.execute(sql, val)
+
+    # Not used
+    # def check_gig_exists_with_uuid(self, cursor, artist_id, venue_id, time):
+    #     sql = "SELECT 1 FROM `gigs` WHERE artists.uuid = %s AND venues.uuid = %s AND `time` = %s"
+    #     val = (
+    #         artist_id,
+    #         venue_id,
+    #         time,
+    #     )
+    #     cursor.execute(sql, val)
+    #     myresult = cursor.fetchall()
+    #     return myresult
+
+    def check_event_duplicate(self, cursor, artist_id, venue_id, time, date):
+        sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s"
+        val = (
+            artist_id,
+            venue_id,
+            time,
+            date
+        )
+        cursor.execute(sql, val)
+        myresult = cursor.fetchall()
+        if (len(myresult) > 0):
+            return True
+        else:
+            return False
+    
+class artist_h_funcs:
+    def get_artist_info_from_id(self, cursor, artist_id):
+        sql = "SELECT * FROM `artists` WHERE `artist_id` = %s"
+        val = (
+            artist_id,
+        )
+        cursor.execute(sql, val)
+        myresult = cursor.fetchall()
+        if (len(myresult) == 1):
+            return myresult[0]
+        else:
+            return None
