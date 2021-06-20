@@ -1,6 +1,7 @@
 import time
 from datetime import datetime as dt
 import datetime
+from traceback import print_exc
 from ..sql.sql_connector import connector_for_class_method as connector_for_class_method
 from ..helper_funcs import db_funcs as db, event_h_funcs
 from ..helper_funcs import venue_h_funcs as venue_h_funcs
@@ -87,8 +88,36 @@ class events_list:
     # TODO see below
     @connector_for_class_method
     def day(self, cursor, request):
-
         stime = time.time()
+    
+        # If a region is given, only events in venues that exist within the region are added to the events list.
+        # When the events list being built, only the events hosted at an 'approved' venue should be added.
+        
+        # * The current state of filtering events by region is expensive and has many areas that need optimsation.
+        # * Replace region queries with indexes (venues and associated regions)
+        # * Index of events and which regions they are associated with, 
+        # * note, that would require an extra method when a new event is created, and also when a new
+        # * region is created a trigger needs to be implemented to rebuild/update the index.
+        # TODO see above
+        region_venues_list = None
+        try:
+            region_id = request.query['region']
+            
+            sql_set_reg = "SET @g1 = (SELECT `polygon` FROM `region_polygons` WHERE `uuid` = '{}');".format(region_id)
+            sql_query = "SELECT venues.venue_id, venues.uuid FROM venues WHERE ST_CONTAINS(@g1, venues.coordinate) AND venues.active = True"
+            cursor.execute(sql_set_reg)
+            cursor.execute(sql_query)
+            
+            # List of all venues within region
+            region_venues_list = cursor.fetchall()
+
+        except KeyError:
+            region_id = None
+            pass
+        except Exception as e:
+            print_exc()
+        
+        
         day = request.query['day']
         plus_day = 0
         if (day == 'today'):
@@ -126,11 +155,24 @@ class events_list:
                 event['genre'] = db.get_genre(None, cursor, result[9])
                 event['open_status'] = venue_h_funcs.open_status(None, venue_h_funcs.to_list(None, result[12]), result[1])
                 event = event_h_funcs.format_fields(event)
-                gigs.append(event)
+                
+                # If a region is given, compare the current event-venue with the list of region_venues_list
+                if region_venues_list is not None:
+                    # Iterate through the venues list
+                    for venue in region_venues_list:
+                        if venue[1] == event['venue_id']:
+                            gigs.append(event)
+                        
+                else:
+                    gigs.append(event)
 
+            # Sort each event by start time
             gigs.sort(key=lambda gigsg: gigsg['time'])
+            
+            # Create an iterable where the events are grouped by time
             gigs_grouped_iter = groupby(gigs, lambda gigsg: gigsg['time'])
 
+            # Restruct the events in groups with the event time as keys
             for t, g in gigs_grouped_iter:
                 gigs_group[t] = []
                 for e in g:
@@ -138,7 +180,6 @@ class events_list:
         else:
             # No gigs today. Return empty
             gigs_group = {}
-            
 
         etime = time.time()
         print("Time: " + str((etime - stime)*1000) + " ms")
@@ -159,6 +200,25 @@ class events_list:
     def month(self, cursor, request):
 
         stime = time.time()
+        
+        # Region filter
+        region_venues_list = None
+        try:
+            region_id = request.query['region']
+            
+            sql_set_reg = "SET @g1 = (SELECT `polygon` FROM `region_polygons` WHERE `uuid` = '{}');".format(region_id)
+            sql_query = "SELECT venues.venue_id, venues.uuid FROM venues WHERE ST_CONTAINS(@g1, venues.coordinate) AND venues.active = True"
+            cursor.execute(sql_set_reg)
+            cursor.execute(sql_query)
+            
+            # List of all venues within region
+            region_venues_list = cursor.fetchall()
+
+        except KeyError:
+            region_id = None
+            pass
+        except Exception as e:
+            print_exc()
         
         # * Start day is 2 days from current. This skips the today and tomorrow responses
         start_day_dt = (dt.today() + datetime.timedelta(days=2))
@@ -193,7 +253,15 @@ class events_list:
                 event_info.pop('hours_weekday', None)
                 event_info = event_h_funcs.format_fields(event_info)
                 event_info['open_status'] = venue_h_funcs.open_status(None, venue_h_funcs.to_list(None, result[12]), result[1])
-                events.append(event_info)
+                # If a region is given, compare the current event-venue with the list of region_venues_list
+                if region_venues_list is not None:
+                    # Iterate through the venues list
+                    for venue in region_venues_list:
+                        if venue[1] == event_info['venue_id']:
+                            events.append(event_info)
+                        
+                else:
+                    events.append(event_info)
                 
             events.sort(key=lambda eventsgrouped: eventsgrouped['time'])
 
