@@ -59,6 +59,15 @@ async def events_month(request):
                                         sort_keys=True,
                                         default=str),
                         status=200)
+    
+async def _events_all(request):
+    h_funcs.h_funcs.print_req_info(None, request)
+    res = await events.all(None, request)
+    return web.Response(text=json.dumps(res,
+                                        indent=4,
+                                        sort_keys=True,
+                                        default=str),
+                        status=200)
 
 async def _event_info(request):
     h_funcs.h_funcs.print_req_info(None, request)
@@ -262,10 +271,10 @@ async def new_event(request):
     h_funcs.h_funcs.print_req_info(None, request)
     event_data = await request.json()
     res = post_event.post_event(None, request, event_data)
-    # if (res['status'] == 'fail'):
-    #     staus_code = 500
-    # else:
-    #     staus_code = 200
+    if (res['status'] == 'FAIL'):
+        staus_code = 500
+    else:
+        staus_code = 200
     return web.Response(text=json.dumps(res,
                                         indent=4,
                                         sort_keys=True,
@@ -277,7 +286,7 @@ async def new_artist(request):
     h_funcs.h_funcs.print_req_info(None, request)
     data_json = await request.json()
     res = post_artist.post_artist(None, request, data_json)
-    if (res['status'] == 'fail'):
+    if (res['status'] == 'FAIL'):
         staus_code = 500
     else:
         staus_code = 200
@@ -334,12 +343,38 @@ async def deactivate_venue(request):
     except:
         traceback.print_exc()
         
-        res['status'] = 'fail'
+        res['status'] = 'FAIL'
 
-    if (res['status'] == 'fail'):
+    if (res['status'] == 'FAIL'):
         staus_code = 500
     else:
         staus_code = 200
+    return web.Response(
+                        text=json.dumps(res,
+                                        indent=4,
+                                        sort_keys=True,
+                                        default=str),
+                        
+                        status=staus_code,
+                        )
+
+async def disable_event(request):
+    h_funcs.h_funcs.print_req_info(None, request)
+    res = {}
+    try:
+        data_json = await request.json()
+
+        res = post_event.disable(None, data_json)
+    except:
+        traceback.print_exc()
+        
+        res['status'] = 'FAIL'
+
+    if (res['status'] == 'FAIL'):
+        staus_code = 500
+    elif (res['status'] == 'OK') :
+        staus_code = 200
+    
     return web.Response(
                         text=json.dumps(res,
                                         indent=4,
@@ -379,6 +414,7 @@ app.add_routes([
     web.get('/event', _event_info),
     web.get('/events', _events),
     web.get('/events/month', events_month),
+    web.get('/events/all', _events_all),
     web.get('/index/search', search_index),
     web.get('/index/venue/locations', locations_index),
     web.get('/index/artists', artists_index),
@@ -392,6 +428,7 @@ app.add_routes([
 
     # * Update
     # See CORS resources
+    # web.put('/event/disable', disable_event),
 
     # * Create
     web.post('/event/new', new_event),
@@ -428,6 +465,7 @@ route1 = cors.add(
             # # max_age=3600,
         )
     })
+
 resource2 = cors.add(app.router.add_resource("/venue/deactivate"))
 route2 = cors.add(
     resource2.add_route("POST", deactivate_venue), {
@@ -439,5 +477,15 @@ route2 = cors.add(
         )
     })
 
+resource3 = cors.add(app.router.add_resource("/event/disable"))
+route3 = cors.add(
+    resource3.add_route("POST", disable_event), {
+        "*": aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+            # # max_age=3600,
+        )
+    })
 
 web.run_app(app, port=12122)

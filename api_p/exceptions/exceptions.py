@@ -24,6 +24,8 @@ class MoreThanOneRecordReturned(Exception):
     pass
 class Duplicate(Exception):
     pass
+class EventConflict(Exception):
+    pass
 
 # Image
 class SaveImageError(Exception):

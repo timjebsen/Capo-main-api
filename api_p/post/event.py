@@ -3,7 +3,7 @@
 import time
 import json
 from ..sql.sql_connector import connector_for_class_post_method
-from ..helper_funcs import db_funcs as db_funcs
+from ..helper_funcs import db_funcs as db_funcs, event_h_funcs
 from ..helper_funcs import notices as n
 import datetime
 import traceback
@@ -59,6 +59,15 @@ class event:
             else:
                 raise DataError(n.print_note(None, 2, "post_event", "Could not determine a method to get venue id. Check uuid/name/place_id"))
             
+            # Prepare source
+            # get the source name
+            # Try and match it with existing source name to get sourcce id
+            # if not exists, create new source record.
+            
+            # Any errors default to 'unknown' user and and source
+            source_id = db_funcs.get_source_id(None, cursor, gig_info['source_name'], gig_info['source_link'])
+            user_id = db_funcs.get_user_id(None, cursor, gig_info['user_name'])
+
             # Convert string to datetime object
             date = datetime.datetime.strptime(gig_info['date'], '%Y-%m-%d')
 
@@ -109,8 +118,8 @@ class event:
             new_event_info = {
                 "artist_id": artist_id,
                 "venue_id": venue_id,
-                "user_id":4,
-                "source_id":5,
+                "user_id": user_id,
+                "source_id": source_id,
                 "ticket": gig_info['ticket'],
                 "date": date,
                 "time": gig_info['time'],
@@ -145,3 +154,32 @@ class event:
                 "detailed": n.print_note(None, 2, "post_event", "Unexpected error in post_event. See logs for details"),
             }
             return res
+        
+    @connector_for_class_post_method
+    def disable(self, cursor, data):
+        try:
+            res = {}
+            # Data is a uuid of the event
+            event_id = data['event_id']
+            
+            # event_h_funcs.disable(None, cursor, event_id)
+            if (event_h_funcs.disable(None, cursor, event_id)):
+                res['status'] = 'OK'
+                res['message'] = 'Successfully disabled event'
+
+            else:
+                res['status'] = 'OK'
+                res['message'] = 'Failed to disable event. Event already Disabled?'
+            
+            return res
+        
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
+            res = {
+                "status": "FAIL",
+                "message": "Failed to disable event",
+                "detailed": n.print_note(None, 2, "disable", "Unexpected error in event disable. See logs for details"),
+            }
+            return res
+            

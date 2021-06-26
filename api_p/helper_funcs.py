@@ -158,25 +158,47 @@ class db_funcs():
             exists = True
         return exists
 
-    def get_source_id(self, cursor, src_name):
+    def get_source_id(self, cursor, src_name, src_link=None):
         table = "sources"
         column = "name"
 
-        # Plan was to originally have a many sources (websites) for data gathering
-        # this would have required the ability to create new sources on the fly.
-        # Plan has changed to be mostly manual input.
         if not db_funcs.check_exist(None, cursor, table, column, src_name):
-            sql = "INSERT INTO `sources` (name) VALUES (%s);"
-            val = (src_name, )
-            cursor.execute(sql, val)
-            source_id = cursor.lastrowid
+            try:
+                sql = "INSERT INTO `sources` (name, link) VALUES (%s, %s);"
+                val = (src_name, src_link)
+                cursor.execute(sql, val)
+                source_id = cursor.lastrowid
+                return source_id
+            except Exception:
+                traceback.print_exc()
+                notices.print_note(None, 2, "get_source_id", "Error tryng to create a new source")      
         else:
-            sql = "SELECT * FROM `sources` WHERE `name` = %s"
-            val = (src_name, )
+            try:
+                sql = "SELECT * FROM `sources` WHERE `name` = %s"
+                val = (src_name, )
+                cursor.execute(sql, val)
+                myresult = cursor.fetchall()
+                source_id = myresult[0][0]
+                return source_id
+            except Exception:
+                traceback.print_exc()
+                notices.print_note(None, 2, "get_source_id", "Error trying to retrieve source record")
+        return 15 # use 'unknown' 
+        # TODO handle get source id errors
+    
+    def get_user_id(self, cursor, user_name):
+        try:
+            sql = "SELECT * FROM `users` WHERE `name` = %s"
+            val = (user_name, )
             cursor.execute(sql, val)
             myresult = cursor.fetchall()
             source_id = myresult[0][0]
-        return source_id
+            return source_id
+        except Exception:
+            traceback.print_exc()
+            notices.print_note(None, 2, "get_user_id", "Error trying to retrieve source record")
+        return 5 # use 'unknown' 
+        # TODO handle get user id errors
 
     def get_id_using_triplej_or_gplacesid(self, cursor, tbl, val):
         if tbl == "venues":
@@ -474,7 +496,10 @@ class db_funcs():
                                                 event_info['venue_id'],
                                                 event_info['date'])):
                 # event_h_funcs.compare_event_fields(None, cursor, event_info)
-                pass
+                raise EventConflict(
+                    notices.print_note(
+                        None, 0, "insert_event",
+                        "Conflicting event: {}\nVenue already has an event during this time with different title".format(str(event_info))))
                 
 
             else:
@@ -495,6 +520,7 @@ class db_funcs():
                     return res
 
                 except Exception as e:
+                    traceback.print_exc()
                     print(e)
 
         except Duplicate:
@@ -517,7 +543,41 @@ class db_funcs():
                 "message": "Event Already Exists",
             }
             return res
+        
+        except EventConflict:
+            res = {
+                "status": "OK",
+                "message": "Conflicting event. Venue already has an event at this time",
+            }
+            return res
+    
+    def get_source_name(self, cursor, source_id):
+        try:
+            sql = "SELECT `name` FROM `sources` WHERE `source_id` = %s"
+            val = (source_id, )
+            cursor.execute(sql, val)
+            myresult = cursor.fetchall()
+            source_name = myresult[0][0]
+            return source_name
+        except:
+            notices.print_note(None, 1, "get_source_name",
+                                   "Error retriving source name for id: {}".format(source_id))
 
+            return None
+        
+    def get_name_of_user(self, cursor, user_id):
+        try:
+            sql = "SELECT `name` FROM `users` WHERE `user_id` = %s"
+            val = (user_id, )
+            cursor.execute(sql, val)
+            myresult = cursor.fetchall()
+            user_name = myresult[0][0]
+            return user_name
+        except:
+            notices.print_note(None, 1, "get_name_of_user",
+                                   "Error retriving user name for id: {}".format(user_id))
+
+            return None
 
 class notices:
     def print_note(self, type, func, details):
@@ -1107,7 +1167,12 @@ class event_h_funcs:
     #     myresult = cursor.fetchall()
     #     return myresult
 
+    # TODO refactor this
     def check_event_duplicate(self, cursor, artist_id, venue_id, time, date):
+        # Two checks are made. It is common for events that are listed on different sources to have
+        # differnt start times. They are usually within 30 mins. Check both befor and after 30 mins for 
+        # a duplicate event.
+        # A more robust method would be to check every minute +-30 mins.
         sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s"
         val = (
             artist_id,
@@ -1117,10 +1182,51 @@ class event_h_funcs:
         )
         cursor.execute(sql, val)
         myresult = cursor.fetchall()
+        
         if (len(myresult) > 0):
             return True
         else:
+            time_p30 = int(time) + 30
+            sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s"
+            val = (
+                artist_id,
+                venue_id,
+                time_p30,
+                date
+            )
+            cursor.execute(sql, val)
+            myresult = cursor.fetchall()
+            if (len(myresult) > 0):
+                return True
+            else:
+                time_m30 = int(time) - 30
+                sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s"
+                val = (
+                    artist_id,
+                    venue_id,
+                    time_m30,
+                    date
+                )
+                cursor.execute(sql, val)
+                myresult = cursor.fetchall()
+                if (len(myresult) > 0):
+                    return True
+                else:
+                    return False
+    
+    def disable(self, cursor, event_id):
+        sql = "UPDATE `gigs` SET `active` = '0' WHERE `gigs`.`uuid` = %s"
+        val = (
+            event_id,
+        )
+    
+        cursor.execute(sql, val)
+        
+        if (cursor.rowcount == 1):
+            return True
+        else:
             return False
+
     
 class artist_h_funcs:
     def get_artist_info_from_id(self, cursor, artist_id):
@@ -1134,3 +1240,16 @@ class artist_h_funcs:
             return myresult[0]
         else:
             return None
+        
+    def is_stub(self, cursor, artist_id):
+        sql = "SELECT `temp` FROM `artists` WHERE `uuid` = %s"
+        val = (
+            artist_id,
+        )
+        cursor.execute(sql, val)
+        myresult = cursor.fetchall()
+        if (len(myresult) == 1):
+            return myresult[0][0]
+        else:
+            return None
+    

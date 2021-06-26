@@ -39,8 +39,11 @@ class artist_helper:
             info_json = json.loads(info_json)
 
             # Start to build new band info dict
-            artist_name = soup_raw_page.select("#" + "unearthed-profile-title")
-            artist_name = artist_name[0].get_text()
+            artist_name = soup_raw_page.find_all('h1', attrs={"id": "unearthed-profile-title"})
+            for line in artist_name[0].strings:
+                artist_name = line
+                break
+            # artist_name = artist_name[0].strings
             info_json['name'] = artist_name
             
             info_json['source'] = "2"
@@ -83,8 +86,12 @@ class artist_helper:
             # Get Bio and add to info json
             bio = ''
             if soup_raw_page.find_all(class_="views-field-field-artist-bio"):
-                for line in soup_raw_page.find_all(class_="views-field-field-artist-bio")[0].find_all('p'):
-                    bio += line.get_text()
+                for line in soup_raw_page.find_all(class_="views-field-field-artist-bio")[0].strings:
+                    if line == '\n':
+                        continue
+                    else:
+                        line = line.replace("\n", "").replace("\t", "")
+                        bio += line + "\n"
                 info_json['bio'] = bio
             else:
                 info_json['bio'] = None

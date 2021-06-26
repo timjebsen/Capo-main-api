@@ -71,34 +71,34 @@ class venue_info:
     def build_venue_info_obj(self, cursor, sql_response):
         # print('Building Venue Obj')
         # stime = time.time()
-        if sql_response[18] == 1:
-            image_links = img.get_image_links(None, 'venue', sql_response[16])
+        if sql_response[17] == 1:
+            image_links = img.get_image_links(None, 'venue', sql_response[15])
         else:
             image_links = None
 
 
-        address_formatted = sql_response[4].replace(', ', ',\n')
+        address_formatted = sql_response[3].replace(', ', ',\n')
         venue_info = {
-            "name": sql_response[3],
-            "rating": sql_response[9],
+            "name": sql_response[2],
+            "rating": sql_response[8],
             "address": address_formatted,
-            "suburb": sql_response[5],
-            "hours": venue_h_funcs.to_list(None, sql_response[6]), # * Figure out how to accept 2 options. 1 for hours_raw, and another for hours_formatted
-            "price": sql_response[11],
+            "suburb": sql_response[4],
+            "hours": venue_h_funcs.to_list(None, sql_response[5]), # * Figure out how to accept 2 options. 1 for hours_raw, and another for hours_formatted
+            "price": sql_response[10],
             "socials": {
-                "website": sql_response[10],
-                "fb_link": sql_response[13]
+                "website": sql_response[9],
+                "fb_link": sql_response[12]
                 },
-            "google_place_id": sql_response[14],
-            "description": sql_response[15],
+            "google_place_id": sql_response[13],
+            "description": sql_response[14],
             "types": venue_h_funcs.prepare_types(None, db.get_venue_types(None, cursor, sql_response[0])),
-            "id": sql_response[16],
-            "open_status": venue_h_funcs.format_open_status(venue_h_funcs.open_status(None, venue_h_funcs.to_list(None, sql_response[6]), sql_response[3])),
-            "has_img": sql_response[18],
+            "id": sql_response[15],
+            "open_status": venue_h_funcs.format_open_status(venue_h_funcs.open_status(None, venue_h_funcs.to_list(None, sql_response[5]), sql_response[2])),
+            "has_img": sql_response[17],
             "img_links": image_links,
             "costs": {
-                "is_usually_ticketed": sql_response[22],
-                "text": venue_h_funcs.format_costs_message(sql_response[22])
+                "is_usually_ticketed": sql_response[21],
+                "text": venue_h_funcs.format_costs_message(sql_response[21])
             }
             }
 
