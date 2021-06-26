@@ -388,38 +388,38 @@ def get_places_id(request):
         res = {}
 
         if (place_res == None or place_res == {}):
-            res['status'] = 'Empty response from request. See log for details'
-            raise DataError(
-                n.print_note(
-                    None, 2, "get_places_id",
-                    "Unexpected error. No data returned:" + sys.exc_info()[0]))
+            res['status'] = 'FAIL'
+            res['message'] = 'Empty response from request. See log for details'
+            n.print_note(None, 2, "get_places_id",
+                    "Unexpected error. No data returned:" + sys.exc_info()[0])
+            return res
 
         elif (place_res['status'] == 'ZERO_RESULTS'):
-            res['status'] = 'No place found with name as: {}'.format(
+            res['status'] = 'OK'
+            res['message'] = 'No place found with name as: {}'.format(
                 s_venue_name)
-            raise DataError(
-                n.print_note(
-                    None, 2, "get_places_id",
-                    "No place found with name as: {}".format(s_venue_name)))
+            n.print_note(
+                None, 2, "get_places_id",
+                "No place found with name as: {}".format(s_venue_name))
+            return res
 
         elif (place_res['status'] == 'OK'):
             res['status'] = place_res['status']
             res['content'] = place_res['candidates']
             return res
 
-    except DataError:
-        return res
-
     except KeyError as e:
         n.print_note(None, 2, "get_places_id",
                      "Unknown error ocurred: {}".format(str(e)))
-        res['status'] = 'Key error: ' + str(e)
+        res['message'] = 'Key error: ' + str(e)
+        res['status'] = "FAIL"
         return res
 
     except Exception as e:
         n.print_note(None, 2, "get_places_id",
                      "Unknown error ocurred: {}".format(str(e)))
-        res['status'] = 'Unknown error ocurred. See log for details'
+        res['message'] = 'Unknown error ocurred. See log for details'
+        res['status'] = 'FAIL'
         return res
 
 
@@ -437,19 +437,21 @@ def get_place_details(request):
         res = {}
 
         if (place_res == None or place_res == {}):
-            res['status'] = 'Could not reach maps.googleapis.com. Check internet connection. Please notify admin'
-            raise DataError(
-                n.print_note(
-                    None, 2, "get_place_details",
-                    "Could not reach maps.googleapis.com. Check internet connection:"
-                    + sys.exc_info()[0]))
+            res['status'] = 'OK'
+            res['message'] = 'Could not reach maps.googleapis.com. Check internet connection. Please notify admin'
+            n.print_note(
+                None, 2, "get_place_details",
+                "Could not reach maps.googleapis.com. Check internet connection:"
+                + sys.exc_info()[0])
+            return res
 
         elif (place_res['status'] == 'ZERO_RESULTS'):
-            res['status'] = 'No place found with place_id: {}'.format(place_id)
-            raise DataError(
-                n.print_note(
-                    None, 2, "get_place_details",
-                    "No place found with place_id: {}".format(place_id)))
+            res['status'] = 'OK'
+            res['message'] = 'No place found with place_id: {}'.format(
+                place_id)
+            n.print_note(None, 2, "get_place_details",
+                         "No place found with place_id: {}".format(place_id))
+            return res
 
         elif (place_res['status'] == 'OK'):
             res['status'] = place_res['status']
@@ -509,7 +511,8 @@ def get_place_details(request):
 
                 res['content'] = rebuilt_venue_model
             except:
-                res['status'] = "Error building venue info"
+                res['status'] = 'FAIL'
+                res['message'] = "Error building venue info"
                 print(
                     n.print_note(
                         None, 2, "get_places_id",
@@ -517,9 +520,6 @@ def get_place_details(request):
                         sys.exc_info()[0]))
 
             return res
-
-    except DataError:
-        return res
 
     except KeyError as e:
         n.print_note(None, 2, "get_places_id",
