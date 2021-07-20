@@ -69,6 +69,15 @@ async def _events_all(request):
                                         default=str),
                         status=200)
 
+async def _events_pending(request):
+    h_funcs.h_funcs.print_req_info(None, request)
+    res = await events.pending(None, request)
+    return web.Response(text=json.dumps(res,
+                                        indent=4,
+                                        sort_keys=True,
+                                        default=str),
+                        status=200)
+
 async def _event_info(request):
     h_funcs.h_funcs.print_req_info(None, request)
     res = await gig.info(None, request)
@@ -415,6 +424,7 @@ app.add_routes([
     web.get('/events', _events),
     web.get('/events/month', events_month),
     web.get('/events/all', _events_all),
+    web.get('/events/pending', _events_pending),
     web.get('/index/search', search_index),
     web.get('/index/venue/locations', locations_index),
     web.get('/index/artists', artists_index),

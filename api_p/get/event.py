@@ -279,9 +279,6 @@ class events_list:
         
         etime = time.time()
         print("Time: " + str((etime - stime)*1000) + " ms")
-            # time.sleep(5)
-        
-        # print("connection after "+str(db_conn.open))
         return response_builder.build_res(None, events_grouped, "events", request, stime, {})
     
     @connector_for_class_method
@@ -307,7 +304,7 @@ class events_list:
         #     pass
         # except Exception as e:
         #     print_exc()
-        base_sql = "SELECT artists.name, venues.name, gigs.uuid, `ticket`, `date`, `time`, `price`, `facebook_event_link`, venues.suburb, artists.uuid, venues.uuid, venues.usually_ticketed, venues.hours_weekday, gigs.description, gigs.event_link, gigs.source_id, gigs.user_id \
+        base_sql = "SELECT artists.name, venues.name, gigs.uuid, `ticket`, `date`, `time`, `price`, `facebook_event_link`, venues.suburb, artists.uuid, venues.uuid, venues.usually_ticketed, venues.hours_weekday, gigs.description, gigs.event_link, gigs.source_id, gigs.user_id, gigs.active, gigs.pending, gigs.date_added \
             FROM ((`gigs` INNER JOIN artists ON gigs.artist_id = artists.artist_id) \
             INNER JOIN venues ON gigs.venue_id = venues.venue_id)"
         
@@ -317,7 +314,7 @@ class events_list:
             "-" + start_day_dt.strftime("%d")
 
         sql_mod = "WHERE `date` >= '{}'".format(date_start)
-        sql_only_active = "AND artists.active = True AND venues.active = True AND gigs.active = True"
+        sql_only_active = "AND artists.active = True AND venues.active = True"
         
         sql = base_sql + sql_mod + sql_only_active
         cursor.execute(sql)
@@ -395,7 +392,82 @@ class events_list:
         
         etime = time.time()
         print("Time: " + str((etime - stime)*1000) + " ms")
-            # time.sleep(5)
+        return response_builder.build_res(None, events_grouped, "events", request, stime, {})
+    
+    @connector_for_class_method
+    def pending(self, cursor, request):
+
+        stime = time.time()
         
-        # print("connection after "+str(db_conn.open))
+        base_sql = "SELECT artists.name, venues.name, gigs.uuid, `ticket`, `date`, `time`, `price`, `facebook_event_link`, venues.suburb, artists.uuid, venues.uuid, venues.usually_ticketed, venues.hours_weekday, gigs.description, gigs.event_link, gigs.source_id, gigs.user_id, gigs.active, gigs.date_added \
+            FROM ((`gigs` INNER JOIN artists ON gigs.artist_id = artists.artist_id) \
+            INNER JOIN venues ON gigs.venue_id = venues.venue_id)"
+        
+        start_day_dt = (dt.today())
+
+        date_start = start_day_dt.strftime("%Y") + "-" + start_day_dt.strftime("%m") + \
+            "-" + start_day_dt.strftime("%d")
+
+        sql_mod = "WHERE `date` >= '{}'".format(date_start)
+        sql_only_active = "AND artists.active = True AND venues.active = True AND gigs.pending = True"
+        
+        sql = base_sql + sql_mod + sql_only_active
+        cursor.execute(sql)
+        
+        row_headers = [x[0] for x in cursor.description]
+        row_headers[0] = "artist_name"
+        row_headers[1] = "venue_name"
+        row_headers[2] = "event_id"
+        row_headers[9] = "artist_id"
+        row_headers[10] = "venue_id"
+
+        myresult = cursor.fetchall()
+        events = []
+        events_grouped = {}
+        if (len(myresult) > 0):
+            for result in myresult:
+
+                event_info = dict(zip(row_headers, result))
+
+                event_info['notes'] = ""
+                event_info['level'] = 0
+                
+                # if stub
+                if (artist_h_funcs.is_stub(None, cursor, result[9])):
+                    event_info['level'] += 1
+                    event_info['notes'] += "Is Stub"
+                    
+                
+                # no description
+                if (not result[13]):
+                    event_info['level'] += 1
+                    event_info['notes'] += " : Desc"
+                
+                # no event links
+                if (not result[14] and not result[7]):
+                    event_info['level'] += 1
+                    event_info['notes'] += " : Links"
+                
+                # Get data source
+                event_info['source'] = {}
+                event_info['source']['name'] = db.get_source_name(None, cursor, result[15])
+                event_info['source']['user'] = db.get_name_of_user(None, cursor, result[16])
+                    
+                events.append(event_info)                
+                
+            events.sort(key=lambda eventsgrouped: eventsgrouped['time'])
+
+            events_grouped_iter = groupby(events, lambda eventsgrouped: eventsgrouped['date'])
+
+            for w, g in events_grouped_iter:
+                try:
+                    events_grouped[str(w)]
+                except KeyError:
+                    events_grouped[str(w)] = []
+
+                for e in g:
+                    events_grouped[str(w)].append(e)
+        
+        etime = time.time()
+        print("Time: " + str((etime - stime)*1000) + " ms")
         return response_builder.build_res(None, events_grouped, "events", request, stime, {})
