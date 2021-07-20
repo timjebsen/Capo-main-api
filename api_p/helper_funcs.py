@@ -456,6 +456,7 @@ class db_funcs():
                                "ID must be uuid: given {}".format(id))
         return type_string
 
+    # TODO move to event_h_funcs class
     def insert_event(self, cursor, event_info):
         try:
             if (type(event_info) != dict):
@@ -471,6 +472,7 @@ class db_funcs():
                                                       event_info['venue_id'],
                                                       event_info['time'],
                                                       event_info['date'])):
+                # TODO check for new info
                 raise Duplicate(
                     notices.print_note(
                         None, 0, "insert_event",
@@ -495,7 +497,26 @@ class db_funcs():
                                                 event_info['time'],
                                                 event_info['venue_id'],
                                                 event_info['date'])):
+                
                 # event_h_funcs.compare_event_fields(None, cursor, event_info)
+                
+                # TODO check for new info
+                # Add event with pending = true and active = false
+                try:
+                    sql = "INSERT INTO `gigs`(`artist_id`, `venue_id`, `user_id`, `source_id`, `ticket`, `date`, `time`, `price`, `facebook_event_link`, `uuid`, `duration`, `description`, `event_link`, `pending`, `active`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, UUID(), %s, %s, %s, 1, 0)"
+                    vals = (event_info['artist_id'], event_info['venue_id'],
+                            event_info['user_id'], event_info['source_id'],
+                            event_info['ticket'], event_info['date'],
+                            event_info['time'], event_info['price'],
+                            event_info['facebook_event_link'],
+                            event_info['duration'], event_info['description'],
+                            event_info['event_link'])
+                    cursor.execute(sql, vals)
+
+                except Exception as e:
+                    traceback.print_exc()
+                    print(e)
+                    
                 raise EventConflict(
                     notices.print_note(
                         None, 0, "insert_event",
@@ -547,7 +568,7 @@ class db_funcs():
         except EventConflict:
             res = {
                 "status": "OK",
-                "message": "Conflicting event. Venue already has an event at this time",
+                "message": "Conflicting event. Venue already has an event at this time. Please review in admin tool.",
             }
             return res
     
@@ -1045,7 +1066,11 @@ class event_h_funcs:
                                    "Unknown error: {}".format(e))
 
     def check_event_conflict(self, cursor, event_time, event_venue_id, event_date):
-        sql = "SELECT 1 FROM `gigs` WHERE `venue_id` = %s AND `time` = %s AND `date` = %s"
+        """
+            Conflict occurs when events with 2 different titles are at the same venue and the same time.
+            Different to a duplicate which is where both titles are the same.
+        """
+        sql = "SELECT 1 FROM `gigs` WHERE `venue_id` = %s AND `time` = %s AND `date` = %s AND `active` = 1"
         val = (
             event_venue_id,
             event_time,
@@ -1173,13 +1198,14 @@ class event_h_funcs:
         # differnt start times. They are usually within 30 mins. Check both befor and after 30 mins for 
         # a duplicate event.
         # A more robust method would be to check every minute +-30 mins.
-        sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s"
+        sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s AND `active` = 1"
         val = (
             artist_id,
             venue_id,
             time,
             date
         )
+        print(val)
         cursor.execute(sql, val)
         myresult = cursor.fetchall()
         
@@ -1187,7 +1213,6 @@ class event_h_funcs:
             return True
         else:
             time_p30 = int(time) + 30
-            sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s"
             val = (
                 artist_id,
                 venue_id,
@@ -1200,7 +1225,6 @@ class event_h_funcs:
                 return True
             else:
                 time_m30 = int(time) - 30
-                sql = "SELECT 1 FROM `gigs` WHERE `artist_id` = %s AND `venue_id` = %s AND `time` = %s AND `date` = %s"
                 val = (
                     artist_id,
                     venue_id,
