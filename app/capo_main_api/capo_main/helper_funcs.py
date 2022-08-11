@@ -593,7 +593,7 @@ class global_vars:
     venue_img_dir = img_dir + '/venues/'
     artist_img_dir = img_dir + '/artists/'
 
-    PLACES_API_KEY = "AIzaSyDPgUfyiWPK76IytvsJ6-hfmEPOpl6NOLg"
+    PLACES_API_KEY = ""
     PLACES_PHOTOS_URL = "https://maps.googleapis.com/maps/api/place/photo"
     PLACES_DETAILS_BASE = "https://maps.googleapis.com/maps/api/place/details/json"
 

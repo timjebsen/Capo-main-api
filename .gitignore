@@ -8,4 +8,7 @@ testing/
 docker*.yml
 exclude
 push_app
-
+build/
+venv/
+log/
+dist/
