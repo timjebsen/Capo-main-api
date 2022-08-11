@@ -1,6 +1,9 @@
+log/*
+.*cache
+__pycache__/
+.gitignore
+.vscode/
 testing/
-testing*.py
-t.sql
-json
-txt.txt
-log/
+.env
+docker*.yml
+exclude

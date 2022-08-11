@@ -1,0 +1,8 @@
+venv
+*cache*
+instance
+log/
+testing*
+testing/
+utils
+
