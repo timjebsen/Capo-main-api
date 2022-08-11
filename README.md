@@ -10,11 +10,8 @@ The codebase has grown a lot over time, however, remnants of inexperience are st
 ### The CAPO ecosystem
 Capo is suite of different services.
 
-API's
 1. Main api
 2. Images api
 3. Images server
-
-Web Apps
-1. Capo public
-2. Capo admin
+4. Capo public
+5. Capo admin
