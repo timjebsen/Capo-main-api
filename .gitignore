@@ -7,3 +7,5 @@ testing/
 .env
 docker*.yml
 exclude
+push_app
+
