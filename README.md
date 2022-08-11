@@ -16,5 +16,5 @@ API's
 3. Images server
 
 Web Apps
-4. Capo public
-5. Capo admin
+1. Capo public
+2. Capo admin
