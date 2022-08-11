@@ -1,5 +1,8 @@
 # CAPO
 ## A live music event aggregator for QLD Australia
+
+[capo.guide](https://capo.guide)
+
 Capo is a live music event aggregator for Queensland Australia. Arguably one of the best live music scenes in the country, Capo aims to catalogue every event no matter how small. In fact our mission to predominantly advertise the small gigs, showcasing local talent.
 
 ### Disclaimer
